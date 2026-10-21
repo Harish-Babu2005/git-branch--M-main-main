@@ -695,12 +695,33 @@ export function ShePlatesV3() {
       const savedSession = localStorage.getItem(SESSION_KEY);
       queueMicrotask(() => {
         if (saved) setState(repairSavedState(JSON.parse(saved) as V3State));
-        if (savedSession) { const parsed = JSON.parse(savedSession) as DemoSession; setSession(parsed); setActive(nav[parsed.role][0]); }
+        if (savedSession) {
+          const parsed = JSON.parse(savedSession) as DemoSession;
+          setSession(parsed);
+
+          // Restore the last selected page for this role and account.
+          const pageKey = `sheplates-v3-active-page:${parsed.role}:${parsed.email.toLowerCase()}`;
+          const savedPage = localStorage.getItem(pageKey);
+          setActive(
+            savedPage && nav[parsed.role].includes(savedPage)
+              ? savedPage
+              : nav[parsed.role][0]
+          );
+        }
         setHydrated(true);
       });
     } catch { queueMicrotask(() => setHydrated(true)); }
   }, []);
   useEffect(() => { if (hydrated) localStorage.setItem(STORE_KEY, JSON.stringify(state)); }, [state, hydrated]);
+  useEffect(() => {
+    if (!hydrated || !session) return;
+
+    // Persist the active main navigation page per role and account.
+    const pageKey = `sheplates-v3-active-page:${session.role}:${session.email.toLowerCase()}`;
+    if (nav[session.role].includes(active)) {
+      localStorage.setItem(pageKey, active);
+    }
+  }, [active, hydrated, session?.email, session?.role]);
   useEffect(() => { if (!hydrated) return; if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session)); else localStorage.removeItem(SESSION_KEY); }, [session, hydrated]);
   useEffect(() => { if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => undefined); }, []);
   useEffect(() => {
