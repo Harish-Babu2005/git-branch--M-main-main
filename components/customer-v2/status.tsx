@@ -1,5 +1,5 @@
 "use client";
-// Customer statuses: the rail at the top of Stories, the full-screen viewer (watch once), and the composer.
+// Customer statuses: the rail at the top of Stories, the full-screen viewer, and the composer.
 // A status is a photo or a video of up to 30 seconds. It disappears after 24 hours, and each person can
 // watch it once. Nothing here is a permanent gallery.
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -15,7 +15,7 @@ import { Avatar } from "./kit";
 
 type Group = { authorId: string; source: "following" | "nearby"; items: Status[] };
 
-const ringStyle = (source: "following" | "nearby") => (source === "following" ? "ring-[3px] ring-[#e0194f] ring-offset-2" : "ring-[3px] ring-stone-300 ring-offset-2");
+const ringStyle = (_source: "following" | "nearby") => "bg-gradient-to-tr from-amber-400 via-pink-500 to-purple-600 p-[3px]";
 
 export function StatusRail({ mine, groups, onAdd, onOpenMine, onOpenGroup, name, hasPin }: {
   mine: MyStatus[]; groups: Group[]; onAdd: () => void; onOpenMine: () => void; onOpenGroup: (index: number) => void; name: string; hasPin: boolean;
@@ -32,7 +32,22 @@ export function StatusRail({ mine, groups, onAdd, onOpenMine, onOpenGroup, name,
         {newest && <span className="-mt-1 text-[9px] font-bold text-stone-400">{statusTimeLeft(newest.expiresAt)}</span>}
       </div>
       {groups.map((g, i) => <button key={g.authorId} type="button" onClick={() => onOpenGroup(i)} aria-label={`${g.items[0].handle}'s status, ${g.items.length} to watch`} data-testid="status-ring" data-source={g.source} className="flex w-[68px] shrink-0 flex-col items-center gap-1.5">
-        <span className="relative"><span className={`block rounded-full ${ringStyle(g.source)}`}><Avatar name={g.items[0].handle} size={62} /></span>{g.items.length > 1 && <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-[#e0194f] px-1 text-[10px] font-black text-white">{g.items.length}</span>}</span>
+        <span className="relative inline-block">
+          <span
+            className={`block rounded-full ${
+              g.items.every((item) => item.viewed)
+                ? "bg-stone-300 p-[3px]"
+                : ringStyle(g.source)
+            }`}
+          >
+            <Avatar name={g.items[0].handle} size={62} />
+          </span>
+          {g.items.length > 1 && (
+            <span className="absolute right-0 top-0 z-10 grid size-5 translate-x-1/4 -translate-y-1/4 place-items-center rounded-full bg-[#e0194f] text-[10px] font-black text-white shadow-sm">
+              {g.items.length}
+            </span>
+          )}
+        </span>
         <span className="w-full truncate text-center text-[11px] font-bold">{g.items[0].handle}</span>
         {g.source === "nearby" && <span className="-mt-1 inline-flex items-center gap-0.5 text-[9px] font-bold text-stone-400"><MapPin className="size-2.5" />{g.items[0].distanceKm != null ? formatPeopleDistance(g.items[0].distanceKm) : "nearby"}</span>}
       </button>)}
@@ -42,7 +57,7 @@ export function StatusRail({ mine, groups, onAdd, onOpenMine, onOpenGroup, name,
 }
 
 /** Full-screen viewer for one person's statuses, or your own. Watching counts as seen: each status can be
- * watched once. */
+ * can be watched again until it expires. */
 export function StatusViewer({ items, own, onClose, onViewed, onLike, onDelete, loadViewers, onOpenVendor }: {
   items: (Status | MyStatus)[]; own: boolean; onClose: () => void; onViewed: (id: string) => void; onLike: (id: string, on: boolean) => Promise<void>; onDelete?: (id: string) => Promise<void>;
   loadViewers?: (id: string) => Promise<StatusViewer[]>; onOpenVendor?: (vendorId: string) => void;
@@ -105,7 +120,7 @@ export function StatusViewer({ items, own, onClose, onViewed, onLike, onDelete, 
             <span className="inline-flex items-center gap-1.5" data-testid="status-own-likes"><Heart className="size-4" />{(current as MyStatus).likeCount}</span>
             {onDelete && <button type="button" aria-label="Delete this status" onClick={async () => { try { await onDelete(current.id); toast.success("Status deleted"); if (count <= 1) onClose(); else setIndex((i) => Math.max(0, i - 1)); } catch (e) { toast.error(e instanceof Error ? e.message : "Could not delete"); } }} className="ml-auto grid size-10 place-items-center rounded-full bg-white/20 backdrop-blur"><Trash2 className="size-4" /></button>}
           </div>
-          : <div className="flex items-center justify-between"><span className="text-[11px] font-bold text-white/70">Seen once, then gone for you</span>
+          : <div className="flex items-center justify-between"><span className="text-[11px] font-bold text-white/70">You can watch this status again until it expires</span>
               <button type="button" aria-label={liked ? "Unlike" : "Like"} onClick={() => void toggleLike()} className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-2 text-sm font-black backdrop-blur"><Heart className={`size-5 ${liked ? "fill-[#ff4d7a] text-[#ff4d7a]" : ""}`} /><span data-testid="status-likes">{likeCount}</span></button></div>}
         {seenBy && <div className="mt-3 max-h-40 overflow-y-auto rounded-2xl bg-black/55 p-3 text-xs backdrop-blur" data-testid="status-seen-by">{seenBy.length ? seenBy.map((v) => <div key={v.handle} className="flex justify-between py-1"><span className="font-black">@{v.handle}</span><span className="text-white/70">{v.liked ? "♥ " : ""}seen</span></div>) : <span className="text-white/70">Nobody has watched this yet.</span>}</div>}
       </div>
